@@ -2,6 +2,8 @@
 
 A full-stack social media application with real-time features built with **Next.js 16**, **Express 5**, **Socket.IO**, and **SQLite**.
 
+[![Demo Video](https://img.shields.io/badge/Watch-Demo%20Video-red?logo=youtube)](https://youtu.be/HByCLMVrG60)
+
 ## Prerequisites
 
 - Node.js 18+ (developed on v26)
