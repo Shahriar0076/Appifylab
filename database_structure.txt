@@ -1,0 +1,252 @@
+Database Schema — AppifyLab2
+=============================
+Database: SQLite (better-sqlite3)
+Total Tables: 17
+
+---
+
+USERS & AUTH
+============
+
+users
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT
+  first_name            TEXT NOT NULL
+  last_name             TEXT NOT NULL
+  username              TEXT UNIQUE COLLATE NOCASE
+  email                 TEXT NOT NULL UNIQUE COLLATE NOCASE
+  password_hash         TEXT NOT NULL
+  avatar_url            TEXT
+  created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+
+user_profiles
+  user_id               INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE
+  bio                   TEXT NOT NULL DEFAULT ''
+  cover_url             TEXT
+  location              TEXT NOT NULL DEFAULT ''
+  workplace             TEXT NOT NULL DEFAULT ''
+  privacy               TEXT NOT NULL DEFAULT 'public' CHECK (public, friends, private)
+  notification_preferences TEXT NOT NULL DEFAULT '{}'
+  updated_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+
+---
+
+CONTENT
+=======
+
+posts
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT
+  author_id             INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  group_id              INTEGER REFERENCES groups(id) ON DELETE CASCADE
+  content               TEXT NOT NULL DEFAULT ''
+  image_url             TEXT
+  visibility            TEXT NOT NULL DEFAULT 'public' CHECK (public, private)
+  share_of_id           INTEGER REFERENCES posts(id) ON DELETE SET NULL
+  is_deleted            INTEGER NOT NULL DEFAULT 0
+  created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  updated_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+
+comments
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT
+  post_id               INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE
+  author_id             INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  parent_id             INTEGER REFERENCES comments(id) ON DELETE CASCADE
+  content               TEXT NOT NULL
+  image_url             TEXT
+  is_deleted            INTEGER NOT NULL DEFAULT 0
+  created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  updated_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+
+reactions
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT
+  user_id               INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  target_type           TEXT NOT NULL CHECK (post, comment)
+  target_id             INTEGER NOT NULL
+  reaction_type         TEXT NOT NULL DEFAULT 'like' CHECK (like, love, haha)
+  created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  UNIQUE(user_id, target_type, target_id)
+
+saved_posts
+  user_id               INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  post_id               INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE
+  created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  PRIMARY KEY(user_id, post_id)
+
+hidden_posts
+  user_id               INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  post_id               INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE
+  created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  PRIMARY KEY(user_id, post_id)
+
+post_subscriptions
+  user_id               INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  post_id               INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE
+  created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  PRIMARY KEY(user_id, post_id)
+
+---
+
+SOCIAL GRAPH
+============
+
+follows
+  follower_id           INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  followed_id           INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  PRIMARY KEY(follower_id, followed_id)
+  CHECK(follower_id != followed_id)
+
+friend_requests
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT
+  sender_id             INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  receiver_id           INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  status                TEXT NOT NULL DEFAULT 'pending' CHECK (pending, accepted, rejected)
+  created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  updated_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  UNIQUE(sender_id, receiver_id)
+  CHECK(sender_id != receiver_id)
+
+ignored_suggestions
+  user_id               INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  ignored_user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  PRIMARY KEY(user_id, ignored_user_id)
+
+---
+
+GROUPS
+======
+
+groups
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT
+  owner_id              INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  name                  TEXT NOT NULL
+  slug                  TEXT UNIQUE COLLATE NOCASE
+  description           TEXT NOT NULL DEFAULT ''
+  image_url             TEXT
+  privacy               TEXT NOT NULL DEFAULT 'public' CHECK (public, private)
+  created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  updated_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+
+group_members
+  group_id              INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE
+  user_id               INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  role                  TEXT NOT NULL DEFAULT 'member' CHECK (member, moderator, admin)
+  created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  PRIMARY KEY(group_id, user_id)
+
+group_posts
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT
+  group_id              INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE
+  author_id             INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  content               TEXT NOT NULL
+  image_url             TEXT
+  created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+
+---
+
+EVENTS
+======
+
+events
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT
+  creator_id            INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  title                 TEXT NOT NULL
+  slug                  TEXT UNIQUE COLLATE NOCASE
+  description           TEXT NOT NULL DEFAULT ''
+  image_url             TEXT
+  location              TEXT NOT NULL DEFAULT ''
+  starts_at             TEXT NOT NULL
+  created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  updated_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+
+event_attendees
+  event_id              INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE
+  user_id               INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  status                TEXT NOT NULL DEFAULT 'going' CHECK (invited, going, not_going)
+  created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  PRIMARY KEY(event_id, user_id)
+
+event_reminders
+  event_id              INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE
+  user_id               INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  sent_at               TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  PRIMARY KEY(event_id, user_id)
+
+---
+
+STORIES
+=======
+
+stories
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT
+  author_id             INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  image_url             TEXT NOT NULL
+  created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  expires_at            TEXT NOT NULL
+
+story_views
+  story_id              INTEGER NOT NULL REFERENCES stories(id) ON DELETE CASCADE
+  viewer_id             INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  viewed_at             TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  PRIMARY KEY(story_id, viewer_id)
+
+---
+
+MESSAGING
+=========
+
+conversations
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT
+  created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  updated_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+
+conversation_members
+  conversation_id       INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE
+  user_id               INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  last_read_at          TEXT
+  PRIMARY KEY(conversation_id, user_id)
+
+messages
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT
+  conversation_id       INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE
+  sender_id             INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  content               TEXT NOT NULL DEFAULT ''
+  attachment_url        TEXT
+  attachment_name       TEXT
+  delivered_at          TEXT
+  read_at               TEXT
+  created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+
+---
+
+NOTIFICATIONS
+=============
+
+notifications
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT
+  user_id               INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+  actor_id              INTEGER REFERENCES users(id) ON DELETE SET NULL
+  type                  TEXT NOT NULL
+  message               TEXT NOT NULL
+  entity_type           TEXT
+  entity_id             INTEGER
+  is_read               INTEGER NOT NULL DEFAULT 0
+  created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+
+---
+
+INDEXES
+=======
+idx_posts_feed               ON posts(is_deleted, visibility, created_at DESC, id DESC)
+idx_posts_author             ON posts(author_id, created_at DESC)
+idx_posts_group              ON posts(group_id, is_deleted, id DESC)
+idx_comments_post            ON comments(post_id, parent_id, created_at ASC)
+idx_reactions_target         ON reactions(target_type, target_id)
+idx_notifications_user       ON notifications(user_id, is_read, id DESC)
+idx_friend_requests_receiver ON friend_requests(receiver_id, status, id DESC)
+idx_stories_active           ON stories(expires_at, id DESC)
+idx_group_posts_group        ON group_posts(group_id, id DESC)
+idx_events_start             ON events(starts_at, id DESC)
+idx_messages_conversation    ON messages(conversation_id, id DESC)
+
+========================================================================

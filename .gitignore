@@ -1,0 +1,17 @@
+node_modules/
+.next/
+*.sqlite
+*.sqlite-journal
+.env
+.env.local
+uploads/*
+!uploads/.gitkeep
+dist/
+build/
+*.log
+.DS_Store
+Thumbs.db
+video-tutorial-plan.md
+user.txt
+requirements-new.md
+requirements.md
