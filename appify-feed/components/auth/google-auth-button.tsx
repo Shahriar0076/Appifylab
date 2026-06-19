@@ -15,7 +15,38 @@ declare global {
         };
       };
     };
+    appifyGoogleAuth?: {
+      currentHandler?: (response: { credential: string }) => void;
+      handlers: Set<(response: { credential: string }) => void>;
+      initializedClientId?: string;
+      scriptPromise?: Promise<void>;
+    };
   }
+}
+
+function googleAuthState() {
+  window.appifyGoogleAuth ??= { handlers: new Set() };
+  return window.appifyGoogleAuth;
+}
+
+function loadGoogleScript() {
+  const state = googleAuthState();
+  if (window.google) return Promise.resolve();
+  state.scriptPromise ??= new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>('script[src="https://accounts.google.com/gsi/client"]');
+    if (existing) {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error("Unable to load Google sign-in.")), { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Unable to load Google sign-in."));
+    document.head.appendChild(script);
+  });
+  return state.scriptPromise;
 }
 
 export function GoogleAuthButton({ registration }: { registration: boolean }) {
@@ -27,34 +58,45 @@ export function GoogleAuthButton({ registration }: { registration: boolean }) {
 
   useEffect(() => {
     if (!clientId) return;
-    const initialize = () => {
-      window.google?.accounts.id.initialize({
-        client_id: clientId,
-        callback: async ({ credential }) => {
-          try {
-            setError("");
-            await api("/auth/google", {
-              method: "POST",
-              body: JSON.stringify({ credential }),
-            });
-            await refresh();
-            router.replace("/feed");
-          } catch (caught) {
-            setError(caught instanceof Error ? caught.message : "Google authentication failed.");
-          }
-        },
-      });
-      setReady(true);
+    let mounted = true;
+    const state = googleAuthState();
+    const handler = async ({ credential }: { credential: string }) => {
+      try {
+        setError("");
+        await api("/auth/google", {
+          method: "POST",
+          body: JSON.stringify({ credential }),
+        });
+        await refresh();
+        router.replace("/feed");
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : "Google authentication failed.");
+      }
     };
-    if (window.google) initialize();
-    else {
-      const script = document.createElement("script");
-      script.src = "https://accounts.google.com/gsi/client";
-      script.async = true;
-      script.onload = initialize;
-      document.head.appendChild(script);
-      return () => script.remove();
-    }
+    state.handlers.add(handler);
+    state.currentHandler = handler;
+
+    loadGoogleScript()
+      .then(() => {
+        if (!window.google) throw new Error("Unable to load Google sign-in.");
+        if (!state.initializedClientId) {
+          window.google.accounts.id.initialize({
+            client_id: clientId,
+            callback: (response) => state.currentHandler?.(response),
+          });
+          state.initializedClientId = clientId;
+        }
+        if (mounted) setReady(true);
+      })
+      .catch((caught) => {
+        if (mounted) setError(caught instanceof Error ? caught.message : "Unable to load Google sign-in.");
+      });
+
+    return () => {
+      mounted = false;
+      state.handlers.delete(handler);
+      if (state.currentHandler === handler) state.currentHandler = state.handlers.values().next().value;
+    };
   }, [clientId, refresh, router]);
 
   return (
@@ -62,7 +104,10 @@ export function GoogleAuthButton({ registration }: { registration: boolean }) {
       <button
         type="button"
         disabled={!ready}
-        onClick={() => window.google?.accounts.id.prompt()}
+        onClick={() => {
+          googleAuthState().currentHandler = googleAuthState().handlers.values().next().value;
+          window.google?.accounts.id.prompt();
+        }}
         className={`${registration ? "_social_registration_content_btn" : "_social_login_content_btn"} _mar_b40`}
       >
         <img src="/assets/images/google.svg" alt="" className="_google_img" />
