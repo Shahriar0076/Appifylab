@@ -1,139 +1,132 @@
-# Appify — Social Media Demo App
+# Appify Social Media Demo App
 
-A full-stack social media application with real-time features built with **Next.js 16**, **Express 5**, **Socket.IO**, and **SQLite**.
+A full-stack social media app with **Next.js**, **Express**, **Socket.IO**, **MongoDB Atlas**, and **Cloudinary**.
 
-[![Demo Video](https://img.shields.io/badge/Watch-Demo%20Video-red?logo=youtube)](https://youtu.be/HByCLMVrG60)
+## Project Structure
 
-## Prerequisites
+```text
+Appifylab2/
+├── backend/      # Express API + Socket.IO server for Render
+├── appify-feed/  # Next.js frontend
+└── ui/           # Original static UI assets
+```
 
-- Node.js 18+ (developed on v26)
-- npm
+## Local Setup
 
-## Quick Start
+Install dependencies:
 
-### 1. Install dependencies
-
-```bash
+```powershell
 cd backend
 npm install
 
 cd ../appify-feed
 npm install
-
-cd ..
 ```
 
-### 2. Environment Variables (optional)
+Configure backend:
 
-The backend includes a `.env` file with sensible defaults. Review and adjust if needed:
+```powershell
+cd backend
+Copy-Item .env.example .env
+```
+
+Set at least:
 
 ```env
-PORT=4000                          # API server port
-CLIENT_ORIGIN=http://localhost:3000 # Frontend URL (for CORS)
-JWT_SECRET=your-secret-key         # Change in production
-NODE_ENV=development               # Set to "production" for deployment
-GOOGLE_CLIENT_ID=                  # Optional: for Google OAuth login
+CLIENT_ORIGIN=http://localhost:3000
+JWT_SECRET=replace-with-a-long-random-secret
+MONGODB_URI=mongodb://127.0.0.1:27017/appify
+MONGODB_DB_NAME=appify
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
 ```
 
-**Google Login** — To enable "Sign in with Google", set `GOOGLE_CLIENT_ID` to your OAuth 2.0 client ID from the [Google Cloud Console](https://console.cloud.google.com/apis/credentials). The app will still work with email/password login without it.
+For production, use MongoDB Atlas and Cloudinary values. Do not commit real secrets.
 
-### 3. Seed the database
+Seed demo data:
 
-```bash
+```powershell
 cd backend
+npm run migrate
 npm run seed
 ```
 
-This creates a SQLite database with 10 users, posts, groups, events, conversations, reactions, comments, stories, and follows — all with images and realistic data.
+Start backend:
 
-### 3. Start the backend (API + WebSocket)
-
-```bash
+```powershell
 cd backend
 npm run dev
 ```
 
-The API server runs at **http://localhost:4000**.
+Start frontend in another terminal:
 
-### 4. Start the frontend
-
-Open a **new terminal** and run:
-
-```bash
+```powershell
 cd appify-feed
 npm run dev
 ```
 
-The app runs at **http://localhost:3000**.
-
----
+Backend runs at `http://localhost:4000`; frontend runs at `http://localhost:3000`.
 
 ## Demo Accounts
 
-All accounts use the same password: **`AppifyDemo123!`**
+All seeded accounts use password `AppifyDemo123!`.
 
-| Email | Name | Role |
-|---|---|---|
-| demo@appify.local | Demo User | Software Developer |
-| ryan@appify.local | Ryan Roslansky | Product Designer |
-| evan@appify.local | Evan You | Frontend Engineer |
-| sarah@appify.local | Sarah Chen | UX Researcher |
-| marcus@appify.local | Marcus Johnson | Data Scientist |
-| priya@appify.local | Priya Patel | Marketing Lead |
-| james@appify.local | James Wilson | DevOps Engineer |
-| emily@appify.local | Emily Rodriguez | Content Creator |
-| alex@appify.local | Alex Kim | AI Researcher |
-| olivia@appify.local | Olivia Thompson | Startup Founder |
-
----
-
-## Project Structure
-
-```
-Appifylab2/
-├── backend/                  # Express API + Socket.IO server
-│   ├── src/
-│   │   ├── server.js         # Entry point (HTTP + WebSocket)
-│   │   ├── app.js            # Express app & route mounting
-│   │   ├── config.js         # Environment config
-│   │   ├── controllers/      # Route handlers
-│   │   ├── services/         # Business logic & DB queries
-│   │   ├── routes/           # Express route definitions
-│   │   ├── middleware/       # Auth, upload, error handling
-│   │   ├── realtime/         # Socket.IO broadcast helpers
-│   │   ├── db/               # Schema, migrations, seed
-│   │   └── utils/            # Slug generation, presenters
-│   ├── uploads/              # User-uploaded images
-│   └── data/                 # SQLite database file
-├── appify-feed/              # Next.js frontend
-│   ├── app/                  # Next.js App Router pages
-│   │   ├── feed/             # Main newsfeed
-│   │   ├── groups/           # Group listing & detail
-│   │   ├── events/           # Event listing & detail
-│   │   ├── messages/         # Direct messages
-│   │   ├── profile/          # User profiles
-│   │   ├── friends/          # Friends & suggestions
-│   │   ├── notifications/    # Notifications
-│   │   ├── saved/            # Saved posts
-│   │   ├── search/           # Search results
-│   │   ├── insights/         # Analytics dashboard
-│   │   └── settings/         # Privacy & notification prefs
-│   ├── components/           # Shared React components
-│   └── lib/                  # API client, types, routes
-└── ui/                       # UI design assets
+```text
+demo@appify.local
+ryan@appify.local
+evan@appify.local
+sarah@appify.local
+marcus@appify.local
+priya@appify.local
+james@appify.local
+emily@appify.local
+alex@appify.local
+olivia@appify.local
 ```
 
-## Features
+## Deploy Backend To Render
 
-- **News Feed** — Scrollable feed with posts, reactions (like/love/haha), comments, and sharing
-- **Real-time Updates** — New posts, reactions, comments appear instantly via Socket.IO
-- **Groups** — Create/join groups, group posts, member roles (admin/moderator/member)
-- **Events** — Create events, RSVP, invite friends
-- **Direct Messages** — Real-time chat with typing indicators and online presence
-- **User Profiles** — Customizable profiles with cover photos, bio, workplace, location
-- **Friend System** — Send/accept/reject friend requests, follow/unfollow
-- **Notifications** — Real-time notifications for interactions
-- **Stories** — 24-hour ephemeral stories with views
-- **Insights** — Analytics dashboard with activity charts, follower growth, engagement rate, top posts
-- **Search** — Unified search across users, posts, groups, events
-- **Dark Mode** — Toggle between light and dark themes
+1. Create a free MongoDB Atlas cluster.
+2. Add your Render backend host to Atlas network access, or allow `0.0.0.0/0` for a simple free-tier setup.
+3. Create a free Cloudinary account.
+4. Create a Render Web Service from this repository.
+5. Set Render root directory to `backend`.
+6. Set build command to `npm install && npm run migrate`.
+7. Set start command to `npm start`.
+8. Add backend environment variables:
+
+```env
+NODE_ENV=production
+CLIENT_ORIGIN=https://your-frontend-domain
+JWT_SECRET=replace-with-a-long-random-secret
+MONGODB_URI=mongodb+srv://...
+MONGODB_DB_NAME=appify
+CLOUDINARY_CLOUD_NAME=...
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
+CLOUDINARY_FOLDER=appify
+GOOGLE_CLIENT_ID=
+```
+
+9. Optional: run `npm run seed` in a Render shell after deploy.
+
+## Deploy Frontend
+
+Deploy `appify-feed` to Vercel, Netlify, or another Next.js host.
+
+Set:
+
+```env
+NEXT_PUBLIC_API_URL=https://your-render-service.onrender.com
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=
+```
+
+Then update the Render backend `CLIENT_ORIGIN` to the deployed frontend URL.
+
+## Notes
+
+- Uploaded images and attachments are stored in Cloudinary.
+- App data is stored in MongoDB, not local database files.
+- Socket.IO remains on the Express backend and uses the same Render URL as the API.
+- Existing local `backend/data` or `backend/uploads` folders are old development artifacts and are not used by production code.
