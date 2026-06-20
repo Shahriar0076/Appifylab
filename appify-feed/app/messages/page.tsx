@@ -4,7 +4,7 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { SocialShell } from "@/components/layout/social-shell";
 import { useAuth } from "@/components/auth/auth-provider";
-import { api, mediaUrl, realtimeUrl } from "@/lib/api";
+import { api, mediaUrl, realtimeAuthOptions, realtimeUrl } from "@/lib/api";
 import { timeAgo } from "@/lib/time";
 
 type Conversation = { id: number; updatedAt: string; lastMessage: string | null; unreadCount: number; otherUser: { id: number; name: string; avatarUrl: string | null } };
@@ -92,7 +92,7 @@ export default function MessagesPage() {
 
   useEffect(() => {
     if (!user) return;
-    const socket = io(realtimeUrl, { withCredentials: true });
+    const socket = io(realtimeUrl, realtimeAuthOptions());
     socketRef.current = socket;
     if (activeId) socket.emit("conversation:join", activeId);
     socket.on("message:new", (payload) => {

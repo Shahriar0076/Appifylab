@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { api } from "@/lib/api";
+import { api, clearAuthToken } from "@/lib/api";
 import type { User } from "@/lib/types";
 
 type AuthContextValue = {
@@ -31,7 +31,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { void refresh(); }, [refresh]);
 
   const logout = useCallback(async () => {
-    await api("/auth/logout", { method: "POST" });
+    try {
+      await api("/auth/logout", { method: "POST" });
+    } finally {
+      clearAuthToken();
+    }
     setUser(null);
   }, []);
 

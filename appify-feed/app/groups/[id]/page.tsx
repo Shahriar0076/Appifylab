@@ -6,7 +6,7 @@ import { io } from "socket.io-client";
 import { SocialShell } from "@/components/layout/social-shell";
 import { Composer } from "@/components/feed/composer";
 import { PostCard } from "@/components/feed/post-card";
-import { api, mediaUrl, realtimeUrl } from "@/lib/api";
+import { api, mediaUrl, realtimeAuthOptions, realtimeUrl } from "@/lib/api";
 import { groupPath, profilePath } from "@/lib/routes";
 import { useInfiniteScroll } from "@/lib/use-infinite-scroll";
 import type { Post } from "@/lib/types";
@@ -38,7 +38,7 @@ export default function GroupPage() {
   }, [identifier, router]);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
-    const socket = io(realtimeUrl, { withCredentials: true });
+    const socket = io(realtimeUrl, realtimeAuthOptions());
     socket.on("group:changed", (ev: { type: string; groupId: number }) => {
       if (String(ev.groupId) === identifier || String(ev.groupId) === String(groupIdRef.current)) void load();
     });

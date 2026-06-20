@@ -4,7 +4,7 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { io } from "socket.io-client";
 import { useAuth } from "@/components/auth/auth-provider";
-import { api, mediaUrl, realtimeUrl } from "@/lib/api";
+import { api, mediaUrl, realtimeAuthOptions, realtimeUrl } from "@/lib/api";
 import { profilePath } from "@/lib/routes";
 
 type Notification = { id: number; message: string; type: string; isRead: boolean; createdAt: string; actor: { id: number; username: string; name: string; avatarUrl: string | null } | null };
@@ -96,7 +96,7 @@ export function Header() {
 
   useEffect(() => {
     if (!user) return;
-    const socket = io(realtimeUrl, { withCredentials: true });
+    const socket = io(realtimeUrl, realtimeAuthOptions());
     socket.on("notification:new", (payload) => {
       if (payload.userId !== user.id) return;
       setUnreadCount((count) => count + 1);

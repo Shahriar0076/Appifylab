@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { io } from "socket.io-client";
-import { realtimeUrl } from "@/lib/api";
+import { realtimeAuthOptions, realtimeUrl } from "@/lib/api";
 
 export function useNetworkRealtime(onChanged: () => void) {
   const callback = useRef(onChanged);
@@ -12,7 +12,7 @@ export function useNetworkRealtime(onChanged: () => void) {
   }, [onChanged]);
 
   useEffect(() => {
-    const socket = io(realtimeUrl, { withCredentials: true });
+    const socket = io(realtimeUrl, realtimeAuthOptions());
     socket.on("network:changed", () => callback.current());
     return () => { socket.disconnect(); };
   }, []);
