@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
-import { api, mediaUrl, realtimeUrl } from "@/lib/api";
+import { api, mediaUrl, realtimeAuthOptions, realtimeUrl } from "@/lib/api";
 import { useNetworkRealtime } from "@/lib/use-network-realtime";
 import { eventPath, profilePath } from "@/lib/routes";
 
@@ -94,7 +94,7 @@ export function RightSidebar() {
     Promise.all([api<{ people: Person[] }>("/network/people?limit=1"), api<{ friends: Person[] }>("/network/friends")])
       .then(([peopleData, friendData]) => { setPeople(peopleData.people); setFriends(friendData.friends); })
       .catch(() => undefined);
-    const socket = io(realtimeUrl, { withCredentials: true });
+    const socket = io(realtimeUrl, realtimeAuthOptions());
     socket.on("presence:snapshot", ({ userIds }) => setOnline(new Set(userIds)));
     socket.on("presence:update", ({ userId, online: isOnline }) => setOnline((current) => {
       const next = new Set(current);

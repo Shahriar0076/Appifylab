@@ -18,7 +18,8 @@ io.use((socket, next) => {
       const separator = part.indexOf("=");
       return [part.slice(0, separator).trim(), decodeURIComponent(part.slice(separator + 1))];
     }));
-    const payload = jwt.verify(cookies.appify_token, config.jwtSecret);
+    const token = cookies.appify_token || socket.handshake.auth?.token;
+    const payload = jwt.verify(token, config.jwtSecret);
     const users = await db.collection("users");
     const user = await users.findOne({ id: Number(payload.sub) });
     if (!user) return next(new Error("Authentication required."));

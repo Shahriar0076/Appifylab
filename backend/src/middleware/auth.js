@@ -5,7 +5,9 @@ const HttpError = require("../utils/http-error");
 const { publicUser } = require("../utils/presenters");
 
 async function requireAuth(req, _res, next) {
-  const token = req.cookies.appify_token;
+  const authorization = req.headers.authorization || "";
+  const bearerToken = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+  const token = req.cookies.appify_token || bearerToken;
   if (!token) return next(new HttpError(401, "Authentication required."));
 
   try {

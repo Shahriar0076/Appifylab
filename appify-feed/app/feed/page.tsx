@@ -7,7 +7,7 @@ import { SocialShell } from "@/components/layout/social-shell";
 import { Stories } from "@/components/feed/stories";
 import { Composer } from "@/components/feed/composer";
 import { PostCard } from "@/components/feed/post-card";
-import { api, realtimeUrl } from "@/lib/api";
+import { api, realtimeAuthOptions, realtimeUrl } from "@/lib/api";
 import { useInfiniteScroll } from "@/lib/use-infinite-scroll";
 import type { Post } from "@/lib/types";
 
@@ -36,7 +36,7 @@ export default function FeedPage() {
 
   useEffect(() => {
     if (!user) return;
-    const socket = io(realtimeUrl, { withCredentials: true });
+    const socket = io(realtimeUrl, realtimeAuthOptions());
     socket.on("feed:changed", () => void loadPosts());
     return () => { socket.disconnect(); };
   }, [user, loadPosts]);
