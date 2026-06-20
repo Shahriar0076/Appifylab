@@ -25,10 +25,21 @@ async function serialize(row, userId) {
   };
 }
 
-async function list(userId, query = "") {
+function pageOptions(cursor, limit, fallbackLimit = 50) {
+  const safeLimit = Math.min(Math.max(Number(limit) || fallbackLimit, 1), 50);
+  const offset = Math.max(Number(cursor) || 0, 0);
+  return { safeLimit, offset };
+}
+
+async function list(userId, query = "", cursor = null, limit = 50) {
   const events = await db.collection("events");
-  const rows = await events.find({ title: new RegExp(String(query || ""), "i") }).sort({ starts_at: 1, id: -1 }).limit(50).toArray();
-  return Promise.all(rows.map((row) => serialize(row, userId)));
+  const { safeLimit, offset } = pageOptions(cursor, limit);
+  const rows = await events.find({ title: new RegExp(String(query || ""), "i") }).sort({ starts_at: 1, id: -1 }).skip(offset).limit(safeLimit + 1).toArray();
+  const page = rows.slice(0, safeLimit);
+  return {
+    items: await Promise.all(page.map((row) => serialize(row, userId))),
+    nextCursor: rows.length > safeLimit ? offset + safeLimit : null,
+  };
 }
 
 async function create(userId, input, file) {

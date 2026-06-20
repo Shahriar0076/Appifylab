@@ -236,17 +236,26 @@ async function listSaved(userId) {
   return Promise.all(visible.map((row) => serializePost(row, userId)));
 }
 
-async function listGroupPosts(groupId, userId) {
+async function listGroupPosts(groupId, userId, cursor = null, limit = 50) {
   const groups = await db.collection("groups");
   const members = await db.collection("group_members");
   const posts = await db.collection("posts");
   const hidden = await db.collection("hidden_posts");
+  const paged = arguments.length >= 4;
   const group = await groups.findOne({ id: groupId });
   const member = await members.findOne({ group_id: groupId, user_id: userId });
   if (!group || (group.privacy !== "public" && !member)) throw new HttpError(404, "Group was not found.");
   const hiddenIds = (await hidden.find({ user_id: userId }).toArray()).map((row) => row.post_id);
-  const rows = await posts.find({ group_id: groupId, is_deleted: false, id: { $nin: hiddenIds } }).sort({ id: -1 }).limit(50).toArray();
-  return Promise.all(rows.map((row) => serializePost(row, userId)));
+  const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 50);
+  const rows = await posts.find({
+    group_id: groupId,
+    is_deleted: false,
+    id: { ...(cursor ? { $lt: Number(cursor) } : {}), $nin: hiddenIds },
+  }).sort({ id: -1 }).limit(safeLimit + 1).toArray();
+  const page = rows.slice(0, safeLimit);
+  const items = await Promise.all(page.map((row) => serializePost(row, userId)));
+  const result = { items, nextCursor: rows.length > safeLimit ? page[page.length - 1].id : null };
+  return paged ? result : result.items;
 }
 
 async function createPost(userId, input, file, options = {}) {
