@@ -35,6 +35,207 @@ button._nav_dropdown_link { width: 100%; }
 .appify-visibility { background: #f4f7fb; border: 1px solid #e2e8f0; border-radius: 16px; color: #377dff; cursor: pointer; display: inline-flex; align-items: center; font-size: 13px; font-weight: 500; gap: 4px; padding: 5px 12px; transition: background .2s; white-space: nowrap; }
 .appify-visibility:hover { background: #e8eef6; }
 button._nav_profile_dropdown_info { background: none; border: 0; cursor: pointer; outline: none; padding: 0; }
+body.appify-mobile-menu-open { overflow: hidden; }
+.appify-mobile-icon-button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: #666;
+  display: inline-flex;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  width: 40px;
+}
+.appify-mobile-search {
+  display: none;
+  margin: -4px 0 14px;
+  position: relative;
+}
+.appify-mobile-search.is-open {
+  display: block;
+}
+.appify-mobile-search-icon {
+  left: 14px;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.appify-mobile-search input {
+  background: var(--bcolor1, #f4f6f9);
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: var(--color6, #112032);
+  font-size: 14px;
+  height: 42px;
+  outline: none;
+  padding: 0 40px 0 42px;
+  width: 100%;
+}
+.appify-mobile-search input:focus {
+  background: var(--bg2, #fff);
+  border-color: #377dff;
+  box-shadow: 0 0 0 3px rgba(55, 125, 255, .12);
+}
+.appify-mobile-search-clear,
+.appify-mobile-drawer-close {
+  background: transparent;
+  border: 0;
+  color: #777;
+}
+.appify-mobile-search-clear {
+  font-size: 22px;
+  height: 40px;
+  line-height: 1;
+  position: absolute;
+  right: 4px;
+  top: 1px;
+  width: 36px;
+}
+.appify-mobile-menu-backdrop {
+  background: rgba(17, 32, 50, .46);
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: fixed;
+  transition: opacity .2s ease;
+  z-index: 1040;
+}
+.appify-mobile-menu-backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.appify-mobile-drawer {
+  background: var(--bg2, #fff);
+  bottom: 0;
+  box-shadow: -12px 0 32px rgba(17, 32, 50, .16);
+  display: flex;
+  flex-direction: column;
+  max-width: 86vw;
+  overflow-y: auto;
+  padding: 18px;
+  position: fixed;
+  right: 0;
+  top: 0;
+  transform: translateX(105%);
+  transition: transform .22s ease;
+  width: 320px;
+  z-index: 1050;
+}
+.appify-mobile-drawer.is-open {
+  transform: translateX(0);
+}
+.appify-mobile-drawer-header {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+.appify-mobile-profile {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--color6, #112032);
+  display: flex;
+  flex: 1;
+  gap: 10px;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+.appify-mobile-profile img {
+  border-radius: 50%;
+  flex: 0 0 44px;
+  height: 44px;
+  object-fit: cover;
+  width: 44px;
+}
+.appify-mobile-profile span {
+  display: block;
+  min-width: 0;
+}
+.appify-mobile-profile strong,
+.appify-mobile-profile small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.appify-mobile-profile strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+.appify-mobile-profile small {
+  color: #377dff;
+  font-size: 12px;
+  margin-top: 2px;
+}
+.appify-mobile-drawer-close {
+  flex: 0 0 36px;
+  font-size: 26px;
+  height: 36px;
+  line-height: 1;
+  width: 36px;
+}
+.appify-mobile-drawer-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.appify-mobile-drawer-nav button,
+.appify-mobile-logout {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  color: var(--color7, #555);
+  display: flex;
+  font-size: 15px;
+  font-weight: 500;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 10px 12px;
+  text-align: left;
+  width: 100%;
+}
+.appify-mobile-drawer-nav button.is-active {
+  background: rgba(55, 125, 255, .1);
+  color: #377dff;
+}
+.appify-mobile-drawer-nav em {
+  align-items: center;
+  background: #377dff;
+  border-radius: 999px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 11px;
+  font-style: normal;
+  height: 19px;
+  justify-content: center;
+  min-width: 19px;
+  padding: 0 6px;
+}
+.appify-mobile-logout {
+  color: #e74c3c;
+  margin-top: auto;
+}
+.appify-dark .appify-mobile-search input {
+  background: #1a2a3d;
+  color: #fff;
+}
+.appify-dark .appify-mobile-search input:focus,
+.appify-dark .appify-mobile-drawer {
+  background: #182235;
+}
+.appify-dark .appify-mobile-profile,
+.appify-dark .appify-mobile-drawer-nav button {
+  color: #dbe4ee;
+}
+.appify-dark .appify-mobile-drawer-close,
+.appify-dark .appify-mobile-search-clear {
+  color: #9eacbb;
+}
 .appify-file-input { display: none; }
 .appify-settings-form .appify-form-group { margin-bottom: 14px; }
 .appify-settings-form .appify-auth-name-row { margin-bottom: 14px; }
