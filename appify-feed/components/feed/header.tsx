@@ -43,9 +43,12 @@ export function Header() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [messageUnreadCount, setMessageUnreadCount] = useState(0);
   const [query, setQuery] = useState("");
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [onlyUnread, setOnlyUnread] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const notificationsMenuRef = useRef<HTMLLIElement>(null);
+  const mobileSearchInputRef = useRef<HTMLInputElement>(null);
 
   function loadNotifications() {
     if (!user) return;
@@ -64,6 +67,21 @@ export function Header() {
   }, [user]);
 
   useEffect(() => { loadMessageUnreadCount(); }, [loadMessageUnreadCount, pathname]);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setMobileSearchOpen(false);
+    setNotificationsOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (mobileSearchOpen) mobileSearchInputRef.current?.focus();
+  }, [mobileSearchOpen]);
+
+  useEffect(() => {
+    document.body.classList.toggle("appify-mobile-menu-open", mobileMenuOpen);
+    return () => document.body.classList.remove("appify-mobile-menu-open");
+  }, [mobileMenuOpen]);
 
   useEffect(() => {
     function closeOpenMenus(event: MouseEvent) {
@@ -92,7 +110,8 @@ export function Header() {
 
   function search(event: FormEvent) {
     event.preventDefault();
-    if (query.trim()) router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+    const value = query.trim();
+    if (value) router.push(`/search?q=${encodeURIComponent(value)}`);
   }
 
   const destinations = ["/feed", "/friends", "/notifications", "/messages"];
@@ -100,9 +119,22 @@ export function Header() {
   const currentActive = activeIndex >= 0 ? activeIndex : 0;
 
   async function signOut() {
+    setMobileMenuOpen(false);
     await logout();
     router.replace("/login");
   }
+
+  const mobileMenuItems = [
+    { label: "Feed", path: "/feed" },
+    { label: "Friends", path: "/friends" },
+    { label: "Notifications", path: "/notifications", count: unreadCount },
+    { label: "Messages", path: "/messages", count: messageUnreadCount },
+    { label: "Groups", path: "/groups" },
+    { label: "Events", path: "/events" },
+    { label: "Saved", path: "/saved" },
+    { label: "Settings", path: "/settings" },
+    { label: "Help & Support", path: "/support" },
+  ];
 
   return (
     <>
@@ -158,17 +190,50 @@ export function Header() {
           </div>
         </div>
       </nav>
-      <div className="_header_mobile_menu"><div className="_header_mobile_menu_wrap"><div className="container"><div className="_header_mobile_menu_top_inner"><button className="_logo_btn" onClick={() => router.push("/feed")}><img src="/assets/images/logo.svg" alt="Buddy Script" className="_nav_logo" /></button><SearchIcon /></div></div></div></div>
+      <div className="_header_mobile_menu">
+        <div className="_header_mobile_menu_wrap">
+          <div className="container">
+            <div className="_header_mobile_menu_top_inner">
+              <button className="_logo_btn" onClick={() => router.push("/feed")} aria-label="Go to feed"><img src="/assets/images/logo.svg" alt="Buddy Script" className="_nav_logo" /></button>
+              <button className="appify-mobile-icon-button" type="button" onClick={() => setMobileSearchOpen((value) => !value)} aria-label="Search" aria-expanded={mobileSearchOpen}><SearchIcon /></button>
+            </div>
+            <form className={`appify-mobile-search ${mobileSearchOpen ? "is-open" : ""}`} onSubmit={search}>
+              <SearchIcon className="appify-mobile-search-icon" />
+              <input ref={mobileSearchInputRef} type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search posts, people, and more" aria-label="Search posts, people, and more" />
+              {query && <button className="appify-mobile-search-clear" type="button" onClick={() => setQuery("")} aria-label="Clear search">&times;</button>}
+            </form>
+          </div>
+        </div>
+      </div>
       <div className="_mobile_navigation_bottom_wrapper"><div className="_mobile_navigation_bottom_wrap"><ul className="_mobile_navigation_bottom_list">
         {destinations.map((dest, idx) => (
           <li className="_mobile_navigation_bottom_item" key={idx}>
-            <button className={`_mobile_navigation_bottom_link ${idx === currentActive ? "_mobile_navigation_bottom_link_active" : ""} ${idx === 2 || idx === 3 ? "_header_notify_btn" : ""}`} onClick={() => idx === 2 ? setNotificationsOpen((value) => !value) : router.push(dest)}>
+            <button className={`_mobile_navigation_bottom_link ${idx === currentActive ? "_mobile_navigation_bottom_link_active" : ""} ${idx === 2 || idx === 3 ? "_header_notify_btn" : ""}`} onClick={() => router.push(dest)} aria-label={["Feed", "Friends", "Notifications", "Messages"][idx]}>
               {mobileIcons[idx]}{idx === 2 && unreadCount > 0 && <span className="_counting">{unreadCount}</span>}{idx === 3 && messageUnreadCount > 0 && <span className="_counting">{messageUnreadCount}</span>}
             </button>
           </li>
         ))}
-        <li className="_mobile_navigation_bottom_item"><div className="_header_mobile_toggle"><button className="_header_mobile_btn_link"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="14" fill="none" viewBox="0 0 18 14"><path stroke="#666" strokeLinecap="round" strokeWidth="1.5" d="M1 1h16M1 7h16M1 13h16"/></svg></button></div></li>
+        <li className="_mobile_navigation_bottom_item"><div className="_header_mobile_toggle"><button className="_header_mobile_btn_link" type="button" onClick={() => setMobileMenuOpen(true)} aria-label="Open menu" aria-expanded={mobileMenuOpen}><svg xmlns="http://www.w3.org/2000/svg" width="18" height="14" fill="none" viewBox="0 0 18 14"><path stroke="#666" strokeLinecap="round" strokeWidth="1.5" d="M1 1h16M1 7h16M1 13h16"/></svg></button></div></li>
       </ul></div></div>
+      <div className={`appify-mobile-menu-backdrop ${mobileMenuOpen ? "is-open" : ""}`} onClick={() => setMobileMenuOpen(false)} />
+      <aside className={`appify-mobile-drawer ${mobileMenuOpen ? "is-open" : ""}`} aria-hidden={!mobileMenuOpen}>
+        <div className="appify-mobile-drawer-header">
+          <button className="appify-mobile-profile" type="button" onClick={() => user && router.push(profilePath(user))}>
+            <img src={mediaUrl(user?.avatarUrl)} alt="" />
+            <span><strong>{user?.name}</strong><small>View profile</small></span>
+          </button>
+          <button className="appify-mobile-drawer-close" type="button" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu">&times;</button>
+        </div>
+        <nav className="appify-mobile-drawer-nav" aria-label="Mobile menu">
+          {mobileMenuItems.map((item) => (
+            <button className={pathname.startsWith(item.path) ? "is-active" : ""} type="button" key={item.path} onClick={() => router.push(item.path)}>
+              <span>{item.label}</span>
+              {!!item.count && <em>{item.count}</em>}
+            </button>
+          ))}
+        </nav>
+        <button className="appify-mobile-logout" type="button" onClick={signOut}>Log Out</button>
+      </aside>
     </>
   );
 }
