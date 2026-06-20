@@ -625,6 +625,7 @@
         height: 100%;
         visibility: visible;
         opacity:1;
+        transform: none;
     }
 }
 /*Dekstop*/
@@ -648,7 +649,7 @@
 } 
 @media(max-width:1199px) {
     ._notification_dropdown {
-        left: -177px;
+        left: 50%;
     }
     ._right_inner_area_info_box_txt {
         width: 100%;

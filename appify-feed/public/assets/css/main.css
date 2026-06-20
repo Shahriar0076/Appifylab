@@ -630,6 +630,7 @@
 }
 ._header_nav_item {
     margin: 0 12px;
+    position: relative;
 }
 ._header_nav_link {
     position: relative;
@@ -648,16 +649,21 @@
     box-shadow: rgb(149 157 165 / 20%) 0px 8px 24px;
     padding: 16px;
     width: 400px;
+    max-width: calc(100vw - 32px);
     position: absolute;
-    left: -110px;
+    left: 50%;
     transition: .2s all ease;
-    top: 32px;
+    top: 100%;
     height: calc(100vh - 90px);
     overflow: auto;
-    transform: translateY(20px);
+    transform: translate(-50%, 20px);
     opacity:0;
     visibility: hidden;
     border-radius: 6px;
+    z-index: 1050;
+}
+._notification_dropdown.show {
+    transform: translate(-50%, 0) !important;
 }
 ._notifications_content {
     display: flex;
