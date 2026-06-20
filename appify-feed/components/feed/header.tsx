@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { io } from "socket.io-client";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -41,6 +41,7 @@ export function Header() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [messageUnreadCount, setMessageUnreadCount] = useState(0);
   const [query, setQuery] = useState("");
   const [onlyUnread, setOnlyUnread] = useState(false);
 
@@ -53,6 +54,15 @@ export function Header() {
 
   useEffect(loadNotifications, [user, notificationsOpen, onlyUnread]);
 
+  const loadMessageUnreadCount = useCallback(() => {
+    if (!user) return;
+    api<{ conversations: { unreadCount: number }[] }>("/messages")
+      .then((data) => setMessageUnreadCount(data.conversations.reduce((sum, c) => sum + c.unreadCount, 0)))
+      .catch(() => undefined);
+  }, [user]);
+
+  useEffect(() => { loadMessageUnreadCount(); }, [loadMessageUnreadCount, pathname]);
+
   useEffect(() => {
     if (!user) return;
     const socket = io(realtimeUrl, { withCredentials: true });
@@ -60,6 +70,9 @@ export function Header() {
       if (payload.userId !== user.id) return;
       setUnreadCount((count) => count + 1);
       api<{ notifications: Notification[] }>("/notifications?limit=5").then((data) => setNotifications(data.notifications));
+    });
+    socket.on("message:new", (payload) => {
+      if (payload.recipients?.includes(user.id)) setMessageUnreadCount((count) => count + 1);
     });
     return () => { socket.disconnect(); };
   }, [user]);
@@ -88,8 +101,8 @@ export function Header() {
             <div className="_header_form ms-auto"><form className="_header_form_grp" onSubmit={search}><SearchIcon className="_header_form_svg" /><input className="form-control me-2 _inpt1" type="search" placeholder="Search posts, people, and more" aria-label="Search" value={query} onChange={(event) => setQuery(event.target.value)} /></form></div>
             <ul className="navbar-nav mb-2 mb-lg-0 _header_nav_list ms-auto _mar_r8">
               {navIcons.map((icon, index) => <li className="nav-item _header_nav_item" key={index}>
-                <button className={`nav-link _header_nav_link ${index === currentActive ? "_header_nav_link_active" : ""} ${index === 2 ? "_header_notify_btn" : ""}`} onClick={() => index === 2 ? setNotificationsOpen((value) => !value) : router.push(destinations[index])}>
-                  {icon}{index === 2 && unreadCount > 0 && <span className="_counting">{unreadCount}</span>}
+                <button className={`nav-link _header_nav_link ${index === currentActive ? "_header_nav_link_active" : ""} ${index === 2 || index === 3 ? "_header_notify_btn" : ""}`} onClick={() => index === 2 ? setNotificationsOpen((value) => !value) : router.push(destinations[index])}>
+                  {icon}{index === 2 && unreadCount > 0 && <span className="_counting">{unreadCount}</span>}{index === 3 && messageUnreadCount > 0 && <span className="_counting">{messageUnreadCount}</span>}
                 </button>
                 {index === 2 && notificationsOpen && <div className="_notification_dropdown show">
                   <div className="_notifications_content">
@@ -136,8 +149,8 @@ export function Header() {
       <div className="_mobile_navigation_bottom_wrapper"><div className="_mobile_navigation_bottom_wrap"><ul className="_mobile_navigation_bottom_list">
         {destinations.map((dest, idx) => (
           <li className="_mobile_navigation_bottom_item" key={idx}>
-            <button className={`_mobile_navigation_bottom_link ${idx === currentActive ? "_mobile_navigation_bottom_link_active" : ""} ${idx === 2 ? "_header_notify_btn" : ""}`} onClick={() => idx === 2 ? setNotificationsOpen((value) => !value) : router.push(dest)}>
-              {mobileIcons[idx]}{idx === 2 && unreadCount > 0 && <span className="_counting">{unreadCount}</span>}
+            <button className={`_mobile_navigation_bottom_link ${idx === currentActive ? "_mobile_navigation_bottom_link_active" : ""} ${idx === 2 || idx === 3 ? "_header_notify_btn" : ""}`} onClick={() => idx === 2 ? setNotificationsOpen((value) => !value) : router.push(dest)}>
+              {mobileIcons[idx]}{idx === 2 && unreadCount > 0 && <span className="_counting">{unreadCount}</span>}{idx === 3 && messageUnreadCount > 0 && <span className="_counting">{messageUnreadCount}</span>}
             </button>
           </li>
         ))}

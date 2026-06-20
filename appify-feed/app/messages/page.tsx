@@ -44,7 +44,7 @@ function formatDateSeparator(iso: string) {
 }
 
 export default function MessagesPage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -66,17 +66,26 @@ export default function MessagesPage() {
   }, []);
 
   const loadConversations = useCallback(async () => {
-    const data = await api<{ conversations: Conversation[] }>("/messages");
-    setConversations(data.conversations);
-    if (!activeId && data.conversations[0]) setActiveId(data.conversations[0].id);
-  }, [activeId]);
+    if (loading || !user) return;
+    try {
+      const data = await api<{ conversations: Conversation[] }>("/messages");
+      setConversations(data.conversations);
+      if (!activeId && data.conversations[0]) setActiveId(data.conversations[0].id);
+    } catch {
+      setConversations([]);
+    }
+  }, [activeId, loading, user]);
 
   const loadMessages = useCallback(async () => {
-    if (!activeId) return;
-    const data = await api<{ messages: Message[] }>(`/messages/${activeId}/messages`);
-    setMessages(data.messages);
-    setTimeout(scrollToBottom, 50);
-  }, [activeId, scrollToBottom]);
+    if (loading || !user || !activeId) return;
+    try {
+      const data = await api<{ messages: Message[] }>(`/messages/${activeId}/messages`);
+      setMessages(data.messages);
+      setTimeout(scrollToBottom, 50);
+    } catch {
+      setMessages([]);
+    }
+  }, [activeId, loading, scrollToBottom, user]);
 
   useEffect(() => { void loadConversations(); }, [loadConversations]);
   useEffect(() => { void loadMessages(); }, [loadMessages]);
@@ -104,15 +113,19 @@ export default function MessagesPage() {
 
   async function send(event: FormEvent) {
     event.preventDefault();
-    if (!activeId || !content.trim()) return;
+    if (!user || !activeId || !content.trim()) return;
     const body = new FormData();
     body.append("content", content);
     if (fileRef.current?.files?.[0]) body.append("attachment", fileRef.current.files[0]);
-    await api(`/messages/${activeId}/messages`, { method: "POST", body });
-    setContent("");
-    if (fileRef.current) fileRef.current.value = "";
-    socketRef.current?.emit("typing:stop", { conversationId: activeId });
-    void loadMessages();
+    try {
+      await api(`/messages/${activeId}/messages`, { method: "POST", body });
+      setContent("");
+      if (fileRef.current) fileRef.current.value = "";
+      socketRef.current?.emit("typing:stop", { conversationId: activeId });
+      void loadMessages();
+    } catch {
+      // SocialShell handles auth redirects; keep failed sends from crashing the page.
+    }
   }
 
   const activeConversation = conversations.find((c) => c.id === activeId);
