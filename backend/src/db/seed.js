@@ -9,6 +9,7 @@ const groupService = require("../services/group-service");
 const eventService = require("../services/event-service");
 const networkService = require("../services/network-service");
 const messageService = require("../services/message-service");
+const storyService = require("../services/story-service");
 
 const password = "AppifyDemo123!";
 const sourceRoot = "C:\\Users\\Shahriar\\Downloads\\images";
@@ -78,6 +79,13 @@ const groups = [
   ["Wellness At Work", "Healthy habits for people who spend too much time in tabs."],
   ["Product Marketing Hub", "Positioning, launch messaging, and growth ideas."],
   ["Weekend Explorers", "Trips, food, photos, and small resets after big weeks."],
+];
+
+const groupPostCopy = [
+  "Kicking off a fresh thread for ideas, links, and small wins from this week.",
+  "Sharing a visual reference that could be useful for the next group discussion.",
+  "Quick check-in from today's work session. What should we improve next?",
+  "Dropping a resource that sparked a good hallway conversation earlier.",
 ];
 
 const events = [
@@ -286,6 +294,15 @@ async function createPosts(created, images) {
   return posts;
 }
 
+async function createStories(created, images) {
+  for (let index = 0; index < created.length; index += 1) {
+    await storyService.create(
+      created[index].id,
+      imageFile(images.posts[index % images.posts.length], `story-${index + 1}.jpg`),
+    );
+  }
+}
+
 async function createGroups(created, images) {
   const groupIds = [];
   for (let index = 0; index < groups.length; index += 1) {
@@ -305,10 +322,17 @@ async function createGroups(created, images) {
     if (index % 3 === 0) {
       await groupService.setRole(groupId, owner.id, created[(index + 1) % created.length].id, "moderator");
     }
-    await groupService.createPost(groupId, created[(index + 2) % created.length].id, {
-      content: `Sharing a quick update with ${name}. This group is ready for the demo tour.`,
-      visibility: "public",
-    });
+    for (let postIndex = 0; postIndex < groupPostCopy.length; postIndex += 1) {
+      await groupService.createPost(
+        groupId,
+        created[(index + postIndex) % created.length].id,
+        {
+          content: `${groupPostCopy[postIndex]} (${name})`,
+          visibility: "public",
+        },
+        imageFile(images.posts[(index * groupPostCopy.length + postIndex) % images.posts.length], `group-post-${index + 1}-${postIndex + 1}.jpg`),
+      );
+    }
   }
   return groupIds;
 }
@@ -359,7 +383,7 @@ async function summarize() {
   const names = [
     "users", "posts", "comments", "reactions", "saved_posts", "follows",
     "friend_requests", "groups", "group_members", "events", "event_attendees",
-    "conversations", "messages", "notifications",
+    "stories", "conversations", "messages", "notifications",
   ];
   const entries = [];
   for (const name of names) {
@@ -379,6 +403,7 @@ async function main() {
   const created = await createUsers(images);
   await createNetwork(created);
   const posts = await createPosts(created, images);
+  await createStories(created, images);
   await createGroups(created, images);
   await createEvents(created, images);
   await createMessages(created);

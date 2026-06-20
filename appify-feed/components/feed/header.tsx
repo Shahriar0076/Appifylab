@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { io } from "socket.io-client";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -44,6 +44,8 @@ export function Header() {
   const [messageUnreadCount, setMessageUnreadCount] = useState(0);
   const [query, setQuery] = useState("");
   const [onlyUnread, setOnlyUnread] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  const notificationsMenuRef = useRef<HTMLLIElement>(null);
 
   function loadNotifications() {
     if (!user) return;
@@ -62,6 +64,17 @@ export function Header() {
   }, [user]);
 
   useEffect(() => { loadMessageUnreadCount(); }, [loadMessageUnreadCount, pathname]);
+
+  useEffect(() => {
+    function closeOpenMenus(event: MouseEvent) {
+      const target = event.target as Node;
+      if (profileMenuRef.current && !profileMenuRef.current.contains(target)) setProfileOpen(false);
+      if (notificationsMenuRef.current && !notificationsMenuRef.current.contains(target)) setNotificationsOpen(false);
+    }
+
+    document.addEventListener("mousedown", closeOpenMenus);
+    return () => document.removeEventListener("mousedown", closeOpenMenus);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -100,7 +113,7 @@ export function Header() {
           <div className="collapse navbar-collapse" id="navbarSupportedContent">
             <div className="_header_form ms-auto"><form className="_header_form_grp" onSubmit={search}><SearchIcon className="_header_form_svg" /><input className="form-control me-2 _inpt1" type="search" placeholder="Search posts, people, and more" aria-label="Search" value={query} onChange={(event) => setQuery(event.target.value)} /></form></div>
             <ul className="navbar-nav mb-2 mb-lg-0 _header_nav_list ms-auto _mar_r8">
-              {navIcons.map((icon, index) => <li className="nav-item _header_nav_item" key={index}>
+              {navIcons.map((icon, index) => <li className="nav-item _header_nav_item" key={index} ref={index === 2 ? notificationsMenuRef : undefined}>
                 <button className={`nav-link _header_nav_link ${index === currentActive ? "_header_nav_link_active" : ""} ${index === 2 || index === 3 ? "_header_notify_btn" : ""}`} onClick={() => index === 2 ? setNotificationsOpen((value) => !value) : router.push(destinations[index])}>
                   {icon}{index === 2 && unreadCount > 0 && <span className="_counting">{unreadCount}</span>}{index === 3 && messageUnreadCount > 0 && <span className="_counting">{messageUnreadCount}</span>}
                 </button>
@@ -127,9 +140,9 @@ export function Header() {
                 </div>}
               </li>)}
             </ul>
-            <div className="_header_nav_profile">
+            <div className="_header_nav_profile" ref={profileMenuRef}>
               <div className="_header_nav_profile_image"><img src={mediaUrl(user?.avatarUrl)} alt="" className="_nav_profile_img" /></div>
-              <div className="_header_nav_dropdown"><p className="_header_nav_para">{user?.name}</p><button className="_header_nav_dropdown_btn _dropdown_toggle" type="button" onClick={() => setProfileOpen((value) => !value)}><svg width="10" height="6" fill="none" viewBox="0 0 10 6"><path fill="#112032" d="M5 5l4-4 .7.7-4.4 4.4a.5.5 0 01-.7 0L.3 1.7 1 1l4 4z" /></svg></button></div>
+              <button className="_header_nav_dropdown" type="button" onClick={() => setProfileOpen((value) => !value)} aria-expanded={profileOpen} aria-label="Toggle profile menu"><span className="_header_nav_para">{user?.name}</span><span className="_header_nav_dropdown_btn _dropdown_toggle"><svg width="10" height="6" fill="none" viewBox="0 0 10 6"><path fill="#112032" d="M5 5l4-4 .7.7-4.4 4.4a.5.5 0 01-.7 0L.3 1.7 1 1l4 4z" /></svg></span></button>
               <div className={`_nav_profile_dropdown _profile_dropdown ${profileOpen ? "show" : ""}`}>
                 <button className="_nav_profile_dropdown_info" onClick={() => user && router.push(profilePath(user))}><div className="_nav_profile_dropdown_image"><img src={mediaUrl(user?.avatarUrl)} alt="" className="_nav_drop_img" /></div><div className="_nav_profile_dropdown_info_txt"><h4 className="_nav_dropdown_title">{user?.name}</h4><span className="_nav_drop_profile">View Profile</span></div></button>
                 <hr />

@@ -7,6 +7,7 @@ import { SocialShell } from "@/components/layout/social-shell";
 import { ResourceCard } from "@/components/features/resource-card";
 import { api } from "@/lib/api";
 import { groupPath } from "@/lib/routes";
+import { useInfiniteScroll } from "@/lib/use-infinite-scroll";
 
 type Group = { id: number; slug: string; name: string; description: string; imageUrl: string | null; memberCount: number; membership: string | null };
 
@@ -18,8 +19,28 @@ export default function GroupsPage() {
   const [description, setDescription] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  async function load() { const data = await api<{ groups: Group[] }>("/groups"); setGroups(data.groups); }
+  const [nextCursor, setNextCursor] = useState<number | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  async function load() {
+    const data = await api<{ groups: Group[]; nextCursor: number | null }>("/groups?limit=3");
+    setGroups(data.groups);
+    setNextCursor(data.nextCursor);
+  }
   useEffect(() => { void load(); }, []);
+
+  async function loadMore() {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const data = await api<{ groups: Group[]; nextCursor: number | null }>(`/groups?limit=3&cursor=${nextCursor}`);
+      setGroups((items) => [...items, ...data.groups]);
+      setNextCursor(data.nextCursor);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  const loadMoreRef = useInfiniteScroll(loadMore, Boolean(nextCursor));
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -84,6 +105,7 @@ export default function GroupsPage() {
       <div className="appify-groups-list">
         {groups.map((group) => <ResourceCard key={group.id} title={group.name} subtitle={`${group.description || "Community group"} · ${group.memberCount} members`} imageUrl={group.imageUrl} href={groupPath(group)}><button className="appify-secondary-button" onClick={() => router.push(groupPath(group))}>View</button><button className="appify-comment-submit" onClick={async () => { await api(`/groups/${group.slug}/membership`, { method: "POST" }); void load(); }}>{group.membership ? "Leave" : "Join"}</button></ResourceCard>)}
       </div>
+      <div ref={loadMoreRef} className="appify-load-more">{loadingMore && "Loading more groups..."}</div>
     </section>}
   </SocialShell>;
 }

@@ -8,9 +8,10 @@ import { Composer } from "@/components/feed/composer";
 import { PostCard } from "@/components/feed/post-card";
 import { api, mediaUrl, realtimeUrl } from "@/lib/api";
 import { groupPath, profilePath } from "@/lib/routes";
+import { useInfiniteScroll } from "@/lib/use-infinite-scroll";
 import type { Post } from "@/lib/types";
 
-type Group = { id: number; slug: string; name: string; description: string; imageUrl: string | null; membership: string | null; memberCount?: number; members: Array<{ id: number; username: string; name: string; avatarUrl: string | null; role: string }>; posts: Post[] };
+type Group = { id: number; slug: string; name: string; description: string; imageUrl: string | null; membership: string | null; memberCount?: number; members: Array<{ id: number; username: string; name: string; avatarUrl: string | null; role: string }>; posts: Post[]; postsNextCursor: number | null };
 
 function isFullPost(post: Partial<Post>): post is Post {
   return Boolean(
@@ -27,8 +28,9 @@ export default function GroupPage() {
   const router = useRouter();
   const groupIdRef = useRef<number | null>(null);
   const [group, setGroup] = useState<Group | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const load = useCallback(async () => {
-    const data = await api<{ group: Group }>(`/groups/${encodeURIComponent(identifier)}`);
+    const data = await api<{ group: Group }>(`/groups/${encodeURIComponent(identifier)}?postsLimit=3`);
     groupIdRef.current = data.group.id;
     setGroup({ ...data.group, posts: data.group.posts.filter(isFullPost) });
     const canonical = groupPath(data.group);
@@ -42,6 +44,23 @@ export default function GroupPage() {
     });
     return () => { socket.disconnect(); };
   }, [load, identifier]);
+
+  const loadMorePosts = useCallback(async () => {
+    if (!group?.postsNextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const data = await api<{ group: Group }>(`/groups/${encodeURIComponent(group.slug)}?postsLimit=3&postsCursor=${group.postsNextCursor}`);
+      setGroup((current) => current ? {
+        ...current,
+        posts: [...current.posts, ...data.group.posts.filter(isFullPost)],
+        postsNextCursor: data.group.postsNextCursor,
+      } : current);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [group?.postsNextCursor, group?.slug, loadingMore]);
+
+  const loadMoreRef = useInfiniteScroll(loadMorePosts, Boolean(group?.postsNextCursor));
 
   if (!group) return <SocialShell><div className="appify-feed-loading">Loading group...</div></SocialShell>;
 
@@ -76,6 +95,7 @@ export default function GroupPage() {
     {group.posts.length === 0
       ? <div className="appify-empty">No posts in this group yet.</div>
       : group.posts.map((post) => <PostCard key={post.id} post={post} onChanged={load} />)}
+    <div ref={loadMoreRef} className="appify-load-more">{loadingMore && "Loading more group posts..."}</div>
 
     <section className="appify-page-card appify-group-members-card">
       <h3 className="appify-group-section-title">Members</h3>

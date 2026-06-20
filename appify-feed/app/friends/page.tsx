@@ -7,9 +7,11 @@ import { SocialShell } from "@/components/layout/social-shell";
 import { api, mediaUrl } from "@/lib/api";
 import { useNetworkRealtime } from "@/lib/use-network-realtime";
 import { profilePath } from "@/lib/routes";
+import { useInfiniteScroll } from "@/lib/use-infinite-scroll";
 
 type Person = { id: number; username: string; name: string; avatarUrl: string | null; coverUrl?: string | null; workplace?: string; isFollowing: boolean; friendStatus: "connect" | "requested" };
 type Request = { id: number; user: Person };
+type Paged<T> = { nextCursor: number | null } & T;
 
 function PersonCard({
   person, actions,
@@ -40,18 +42,24 @@ export default function FriendsPage() {
   const [requests, setRequests] = useState<Request[]>([]);
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"all" | "requests" | "friends" | "suggestions">("all");
+  const [peopleNextCursor, setPeopleNextCursor] = useState<number | null>(null);
+  const [friendsNextCursor, setFriendsNextCursor] = useState<number | null>(null);
+  const [requestsNextCursor, setRequestsNextCursor] = useState<number | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const load = useCallback(async () => {
     if (loading || !user) return;
     try {
       const [peopleData, friendsData, requestData] = await Promise.all([
-        api<{ people: Person[] }>(`/network/people?q=${encodeURIComponent(query)}`),
-        api<{ friends: Person[] }>(`/network/friends?q=${encodeURIComponent(query)}`),
-        api<{ requests: Request[] }>("/network/requests"),
+        api<Paged<{ people: Person[] }>>(`/network/people?limit=3&q=${encodeURIComponent(query)}`),
+        api<Paged<{ friends: Person[] }>>(`/network/friends?limit=3&q=${encodeURIComponent(query)}`),
+        api<Paged<{ requests: Request[] }>>("/network/requests?limit=3"),
       ]);
       setPeople(peopleData.people); setFriends(friendsData.friends); setRequests(requestData.requests);
+      setPeopleNextCursor(peopleData.nextCursor); setFriendsNextCursor(friendsData.nextCursor); setRequestsNextCursor(requestData.nextCursor);
     } catch {
       setPeople([]); setFriends([]); setRequests([]);
+      setPeopleNextCursor(null); setFriendsNextCursor(null); setRequestsNextCursor(null);
     }
   }, [loading, query, user]);
   useEffect(() => { void load(); }, [load]);
@@ -67,6 +75,38 @@ export default function FriendsPage() {
   const showRequests = activeTab === "all" || activeTab === "requests";
   const showFriends = activeTab === "all" || activeTab === "friends";
   const showSuggestions = activeTab === "all" || activeTab === "suggestions";
+  const hasMoreVisible = Boolean((showRequests && requestsNextCursor) || (showFriends && friendsNextCursor) || (showSuggestions && peopleNextCursor));
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !user || !hasMoreVisible) return;
+    setLoadingMore(true);
+    try {
+      await Promise.all([
+        showRequests && requestsNextCursor
+          ? api<Paged<{ requests: Request[] }>>(`/network/requests?limit=3&cursor=${requestsNextCursor}`).then((data) => {
+            setRequests((items) => [...items, ...data.requests]);
+            setRequestsNextCursor(data.nextCursor);
+          })
+          : Promise.resolve(),
+        showFriends && friendsNextCursor
+          ? api<Paged<{ friends: Person[] }>>(`/network/friends?limit=3&q=${encodeURIComponent(query)}&cursor=${friendsNextCursor}`).then((data) => {
+            setFriends((items) => [...items, ...data.friends]);
+            setFriendsNextCursor(data.nextCursor);
+          })
+          : Promise.resolve(),
+        showSuggestions && peopleNextCursor
+          ? api<Paged<{ people: Person[] }>>(`/network/people?limit=3&q=${encodeURIComponent(query)}&cursor=${peopleNextCursor}`).then((data) => {
+            setPeople((items) => [...items, ...data.people]);
+            setPeopleNextCursor(data.nextCursor);
+          })
+          : Promise.resolve(),
+      ]);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [friendsNextCursor, hasMoreVisible, loadingMore, peopleNextCursor, query, requestsNextCursor, showFriends, showRequests, showSuggestions, user]);
+
+  const loadMoreRef = useInfiniteScroll(loadMore, hasMoreVisible);
 
   return <SocialShell>
     <div className="appify-page-card appify-friends-header">
@@ -103,5 +143,6 @@ export default function FriendsPage() {
         {people.map((person) => <PersonCard key={person.id} person={person} actions={<><button className={`appify-btn ${person.isFollowing ? "appify-btn-outline" : "appify-btn-secondary"}`} onClick={async () => { const data = await api<{ isFollowing: boolean }>(`/network/people/${person.id}/follow`, { method: "POST" }); setPeople((items) => items.map((item) => item.id === person.id ? { ...item, isFollowing: data.isFollowing } : item)); }}>{person.isFollowing ? "Unfollow" : "Follow"}</button><button className={person.friendStatus === "requested" ? "appify-btn appify-btn-outline" : "appify-btn appify-btn-primary"} disabled={person.friendStatus === "requested"} onClick={async () => { const data = await api<{ friendStatus: Person["friendStatus"] | "friend" }>(`/network/people/${person.id}/request`, { method: "POST" }); setPeople((items) => data.friendStatus === "friend" ? items.filter((item) => item.id !== person.id) : items.map((item) => item.id === person.id ? { ...item, friendStatus: data.friendStatus as Person["friendStatus"] } : item)); if (data.friendStatus === "friend") void load(); }}>{person.friendStatus === "requested" ? "Requested" : "Connect"}</button></>} />)}
       </div>}
     </div>}
+    <div ref={loadMoreRef} className="appify-load-more">{loadingMore && "Loading more people..."}</div>
   </SocialShell>;
 }

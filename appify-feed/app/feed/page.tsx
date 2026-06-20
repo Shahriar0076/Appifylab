@@ -8,18 +8,20 @@ import { Stories } from "@/components/feed/stories";
 import { Composer } from "@/components/feed/composer";
 import { PostCard } from "@/components/feed/post-card";
 import { api, realtimeUrl } from "@/lib/api";
+import { useInfiniteScroll } from "@/lib/use-infinite-scroll";
 import type { Post } from "@/lib/types";
 
 export default function FeedPage() {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
   const [nextCursor, setNextCursor] = useState<number | null>(null);
 
   const loadPosts = useCallback(async () => {
     try {
-      const data = await api<{ items: Post[]; nextCursor: number | null }>("/posts?limit=20");
+      const data = await api<{ items: Post[]; nextCursor: number | null }>("/posts?limit=3");
       setPosts(data.items);
       setNextCursor(data.nextCursor);
       setError("");
@@ -39,19 +41,26 @@ export default function FeedPage() {
     return () => { socket.disconnect(); };
   }, [user, loadPosts]);
 
-  async function loadMore() {
-    if (!nextCursor) return;
-    const data = await api<{ items: Post[]; nextCursor: number | null }>(`/posts?limit=20&cursor=${nextCursor}`);
-    setPosts((current) => [...current, ...data.items]);
-    setNextCursor(data.nextCursor);
-  }
+  const loadMore = useCallback(async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const data = await api<{ items: Post[]; nextCursor: number | null }>(`/posts?limit=3&cursor=${nextCursor}`);
+      setPosts((current) => [...current, ...data.items]);
+      setNextCursor(data.nextCursor);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, nextCursor]);
+
+  const loadMoreRef = useInfiniteScroll(loadMore, Boolean(nextCursor) && !feedLoading);
 
   return (
     <SocialShell>
       <Stories /><Composer onCreated={loadPosts} />
       {error && <div className="appify-empty"><p className="appify-error">{error}</p><button className="appify-comment-submit" onClick={loadPosts}>Try again</button></div>}
       {feedLoading ? <div className="appify-feed-loading">Loading feed...</div> : posts.length ? posts.map((post) => <PostCard key={post.id} post={post} onChanged={loadPosts} />) : <div className="appify-empty">No posts yet. Create the first one above.</div>}
-      {nextCursor && <div className="appify-load-more"><button className="appify-comment-submit" onClick={loadMore}>Load more posts</button></div>}
+      <div ref={loadMoreRef} className="appify-load-more">{loadingMore && "Loading more posts..."}</div>
     </SocialShell>
   );
 }

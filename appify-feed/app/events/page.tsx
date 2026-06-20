@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { SocialShell } from "@/components/layout/social-shell";
 import { api, mediaUrl } from "@/lib/api";
 import { eventPath } from "@/lib/routes";
+import { useInfiniteScroll } from "@/lib/use-infinite-scroll";
 
 type Event = { id: number; slug: string; title: string; description: string; imageUrl: string | null; startsAt: string; location: string; attendeeCount: number; attendance: string | null };
 
@@ -15,9 +16,29 @@ export default function EventsPage() {
   const [form, setForm] = useState({ title: "", description: "", location: "", startsAt: "" });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [nextCursor, setNextCursor] = useState<number | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  async function load() { const data = await api<{ events: Event[] }>("/events"); setEvents(data.events); }
+  async function load() {
+    const data = await api<{ events: Event[]; nextCursor: number | null }>("/events?limit=3");
+    setEvents(data.events);
+    setNextCursor(data.nextCursor);
+  }
   useEffect(() => { void load(); }, []);
+
+  async function loadMore() {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const data = await api<{ events: Event[]; nextCursor: number | null }>(`/events?limit=3&cursor=${nextCursor}`);
+      setEvents((items) => [...items, ...data.events]);
+      setNextCursor(data.nextCursor);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  const loadMoreRef = useInfiniteScroll(loadMore, Boolean(nextCursor));
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -112,6 +133,7 @@ export default function EventsPage() {
           </div>
         </div>;
       })}
+      <div ref={loadMoreRef} className="appify-load-more">{loadingMore && "Loading more events..."}</div>
     </div>
   </SocialShell>;
 }

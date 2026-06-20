@@ -861,6 +861,9 @@
     width: 24px;
 }
 ._header_nav_dropdown {
+    border: 0;
+    background: transparent;
+    padding: 0;
     cursor:pointer;
     display: -webkit-box;
     display: -ms-flexbox;

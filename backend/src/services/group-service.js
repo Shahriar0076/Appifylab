@@ -26,10 +26,22 @@ async function serialize(row, userId) {
   };
 }
 
-async function list(userId, query = "") {
+function pageOptions(cursor, limit, fallbackLimit = 50) {
+  const safeLimit = Math.min(Math.max(Number(limit) || fallbackLimit, 1), 50);
+  const offset = Math.max(Number(cursor) || 0, 0);
+  return { safeLimit, offset };
+}
+
+async function list(userId, query = "", cursor = null, limit = 50) {
   const groups = await db.collection("groups");
-  const rows = await groups.find({ name: new RegExp(String(query || ""), "i") }).sort({ id: -1 }).limit(50).toArray();
-  return Promise.all(rows.map((row) => serialize(row, userId)));
+  const { safeLimit, offset } = pageOptions(cursor, limit);
+  const filter = { name: new RegExp(String(query || ""), "i") };
+  const rows = await groups.find(filter).sort({ id: -1 }).skip(offset).limit(safeLimit + 1).toArray();
+  const page = rows.slice(0, safeLimit);
+  return {
+    items: await Promise.all(page.map((row) => serialize(row, userId))),
+    nextCursor: rows.length > safeLimit ? offset + safeLimit : null,
+  };
 }
 
 async function create(userId, input, file) {
@@ -57,7 +69,8 @@ async function create(userId, input, file) {
   return id;
 }
 
-async function details(identifier, userId) {
+async function details(identifier, userId, postCursor = null, postLimit = 50) {
+  const pagedPosts = arguments.length >= 4;
   const row = await resolveGroup(identifier);
   const groupId = row.id;
   const members = await db.collection("group_members");
@@ -70,7 +83,13 @@ async function details(identifier, userId) {
     const user = await users.findOne({ id: member.user_id });
     return { id: user.id, username: user.username, name: `${user.first_name} ${user.last_name}`, avatarUrl: user.avatar_url, role: member.role };
   }));
-  group.posts = await postService.listGroupPosts(groupId, userId);
+  const posts = await postService.listGroupPosts(groupId, userId, postCursor, postLimit);
+  group.posts = posts.items;
+  group.postsNextCursor = posts.nextCursor;
+  if (!pagedPosts) {
+    group.posts = await postService.listGroupPosts(groupId, userId);
+    group.postsNextCursor = null;
+  }
   return group;
 }
 

@@ -29,13 +29,21 @@ async function acceptedFriendIds(userId) {
   return rows.map((row) => (row.sender_id === userId ? row.receiver_id : row.sender_id));
 }
 
-async function people(userId, query = "", limit = 20) {
+function pageOptions(cursor, limit, fallbackLimit = 20) {
+  const safeLimit = Math.min(Math.max(Number(limit) || fallbackLimit, 1), 50);
+  const offset = Math.max(Number(cursor) || 0, 0);
+  return { safeLimit, offset };
+}
+
+async function people(userId, query = "", limit = 20, cursor = null) {
+  const paged = arguments.length >= 4;
   const users = await db.collection("users");
   const profiles = await db.collection("user_profiles");
   const follows = await db.collection("follows");
   const ignored = await db.collection("ignored_suggestions");
   const requests = await db.collection("friend_requests");
   const search = String(query || "").trim();
+  const { safeLimit, offset } = pageOptions(cursor, limit);
   const ignoredIds = (await ignored.find({ user_id: userId }).toArray()).map((row) => row.ignored_user_id);
   const friendIds = await acceptedFriendIds(userId);
   const rows = await users.find({
@@ -45,8 +53,9 @@ async function people(userId, query = "", limit = 20) {
       { last_name: new RegExp(search, "i") },
       { email: new RegExp(search, "i") },
     ] } : {}),
-  }).sort({ id: -1 }).limit(Math.min(Number(limit) || 20, 50)).toArray();
-  return Promise.all(rows.map(async (user) => {
+  }).sort({ id: -1 }).skip(offset).limit(safeLimit + 1).toArray();
+  const page = rows.slice(0, safeLimit);
+  const items = await Promise.all(page.map(async (user) => {
     const [profile, following, outgoing] = await Promise.all([
       profiles.findOne({ user_id: user.id }),
       follows.findOne({ follower_id: userId, followed_id: user.id }),
@@ -57,6 +66,7 @@ async function people(userId, query = "", limit = 20) {
       friendStatus: outgoing ? "requested" : "connect",
     });
   }));
+  return paged ? { items, nextCursor: rows.length > safeLimit ? offset + safeLimit : null } : items;
 }
 
 async function toggleFollow(userId, targetId) {
@@ -94,12 +104,15 @@ async function sendRequest(userId, targetId) {
   return "requested";
 }
 
-async function requests(userId) {
+async function requests(userId, cursor = null, limit = 50) {
+  const paged = arguments.length >= 2;
   const requestCollection = await db.collection("friend_requests");
   const users = await db.collection("users");
   const profiles = await db.collection("user_profiles");
-  const rows = await requestCollection.find({ receiver_id: userId, status: "pending" }).sort({ id: -1 }).toArray();
-  return Promise.all(rows.map(async (row) => {
+  const { safeLimit, offset } = pageOptions(cursor, limit, 50);
+  const rows = await requestCollection.find({ receiver_id: userId, status: "pending" }).sort({ id: -1 }).skip(offset).limit(safeLimit + 1).toArray();
+  const page = rows.slice(0, safeLimit);
+  const items = await Promise.all(page.map(async (row) => {
     const user = await users.findOne({ id: row.sender_id });
     const profile = await profiles.findOne({ user_id: row.sender_id });
     return {
@@ -109,6 +122,7 @@ async function requests(userId) {
       user: userCard(user, profile),
     };
   }));
+  return paged ? { items, nextCursor: rows.length > safeLimit ? offset + safeLimit : null } : items;
 }
 
 async function respond(userId, requestId, status) {
@@ -121,16 +135,23 @@ async function respond(userId, requestId, status) {
   emitNetworkChange(userId, request.sender_id, status === "accepted" ? "friend_accepted" : "friend_rejected");
 }
 
-async function friends(userId, query = "") {
+async function friends(userId, query = "", cursor = null, limit = 50) {
+  const paged = arguments.length >= 3;
   const users = await db.collection("users");
   const profiles = await db.collection("user_profiles");
   const friendIds = await acceptedFriendIds(userId);
   const search = String(query || "").trim();
+  const { safeLimit, offset } = pageOptions(cursor, limit, 50);
   const rows = await users.find({
     id: { $in: friendIds },
     ...(search ? { $or: [{ first_name: new RegExp(search, "i") }, { last_name: new RegExp(search, "i") }] } : {}),
-  }).sort({ first_name: 1 }).toArray();
-  return Promise.all(rows.map(async (user) => userCard(user, await profiles.findOne({ user_id: user.id }))));
+  }).sort({ first_name: 1, id: 1 }).skip(offset).limit(safeLimit + 1).toArray();
+  const page = rows.slice(0, safeLimit);
+  const result = {
+    items: await Promise.all(page.map(async (user) => userCard(user, await profiles.findOne({ user_id: user.id })))),
+    nextCursor: rows.length > safeLimit ? offset + safeLimit : null,
+  };
+  return paged ? result : result.items;
 }
 
 async function removeFriend(userId, targetId) {
